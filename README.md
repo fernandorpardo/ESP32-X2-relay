@@ -2,22 +2,24 @@
 [![Apache-2.0 license](https://img.shields.io/badge/License-Apache_2.0-green.svg?style=flat-square)](https://www.apache.org/licenses/LICENSE-2.0)
 [![ESP32](https://img.shields.io/badge/ESP-32-green.svg?style=flat-square)](https://www.espressif.com/en/products/socs/esp32)
 
-This ESP32 boarsd with 2 relays is a cost effective solution for automations using relays comes whith no documentation at all.
+This project allows you to control a dual-channel relay module using an **ESP32**, enabling remote or automated switching for AC/DC devices.
 
-![aac726c8d5-82fc-4d28-ac6c-a7032b69dff7~1](https://github.com/user-attachments/assets/72864717-ebb3-4218-aff5-bdfb89d969ad)
+<p align="center">
+<img src="https://github.com/user-attachments/assets/72864717-ebb3-4218-aff5-bdfb89d969ad" width="408" height="407">
+</p>
 
-The following tries to fill that gap with SW and guidelines to use all the four resources on board (the two relays, the led and the button), both through a Rest API and MQTT. 
+The board is sourced with no information. The following tries to fill the gap providing SW and guidelines to use all the four resources on board (the two relays, the led and the button), both through a Rest API and MQTT. 
 
-The guide to integrate the board with Home Assitant are provided as well 
+A guide for the integration with Home Assitant is given as well.
 
 The SW is developed for FreeRTOS OS and the development enviroment is the ESP-IDF. 
 
 # USB connection
 You can find some specs of the board ["here"](https://devices.esphome.io/devices/esp32-relay-x2/).
 
-The board doesn't have a USB interface but a 6 pins header for a USB-to-serial converter that you need to buy apart. 
+The board doesn't have a USB interface but a 6 pins header meant to connect an USB to TTL serial converter that you need to buy apart. 
 
-Connect the GND and +5 pins, and the TX to RX and the RX to TX. The two pins left in the 6 pins header are a GND and the IO0. You need to keep the IO0 connected to GND while falshing.
+Connect the header's and the USB-converter's GND and +5, and the TX & RX crossed. The two pins left in the header are a GND and the IO0. You need to keep the IO0 connected to GND while flashing.
 
 # Enviroment settings
 The source is in C language. 
@@ -32,8 +34,7 @@ The IP connection is through Wi-Fi. You need to set your SSID and password in th
 #define	WIFI_PASSWORD	"THE_PASSWORD_OF_YOUR_SSID"
 ```
 
-The SW is expecting an MQTT broker to publish the measurements. 
-So you need to overwrite the IP address and Port of your MQTT server.
+The SW is expecting an MQTT broker. So you need to overwrite the IP address and Port of your MQTT server.
 ```
 // Mosquitto address
 #define MQTT_HOST_IP_ADDR 	"192.168.1.2"
@@ -46,9 +47,13 @@ And if you want, modify the MQTT device name.
 ```
 
 # Building & flashing
-You need the ESP-IDF development enviroment installed. I am running ESP-IDF v5.4-dev-2194-gd7ca8b94c8 for Linux on a Raspberry Pi 3. 
-Go to ["Configure Your Projec"](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/linux-setup.html) if you need to install it.
-Create a directory for the project (e.g. ./relayX2board), download the files from Github and follow the regular process to generate and flash the SW as described in the ESP-IDF instructions ["Configure Your Projec"](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/linux-macos-setup.html#configure-your-project)
+You need the ESP-IDF development enviroment installed. I am running ESP-IDF v5.4-dev-2194-gd7ca8b94c8 for Linux on a Raspberry Pi 3.
+
+Go to ["Installation of ESP-IDF and Tools on Linux"](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/linux-setup.html) if you need to install it.
+
+
+Create a directory for the project (e.g. ./relayX2board), download the files from Github and follow the regular process to generate and flash the SW as described in the ESP-IDF instructions ["Configure Your Projec"](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/linux-macos-setup.html#configure-your-project).
+
 
 Run the ESP-IDF script to make the tools usable from the command line and to set the necessary environment variables.
 ```console
@@ -75,11 +80,13 @@ Set IO0 to GND and press the EN button. And then type
 idf.py -p /dev/ttyUSB1 flash monitor
 ```
 Release the IO0 pin and press the EN push button to reset the board and start the execution.
+
 Note that you need to choose the right /dev/ttyXXX port depending on your enviroment.
 
 
 # Resp API
 The Rest API interface allow to manage the relays and retrive board status.
+
 The JSON data structure is the following:
 
 (1) Set relays on & off 
@@ -88,7 +95,9 @@ The JSON data structure is the following:
 ```
 Where
 device= "led" / "uno"= relay 1 (outttermost) / "dos"= relay 2
+
 set= "on" / "off"
+
 key= shared key defined in config.h
 
 response:
@@ -159,26 +168,33 @@ pi@MQTT:~ $ mosquitto_pub -t "relayX2board/set" -m '{"device":"uno","set":"on"}'
 # Home Assistant integration
 Integration with Home Assistant is done through MQTT. You need to add the MQTT service to your Home Assistant instance: Go ["here"](https://www.home-assistant.io/integrations/mqtt/) and follow the instruction.
 
-Once you have MQTT service it is time to add the board as MQTT device.
+Once you have the MQTT service enabled, it is time to add the board as MQTT device.
 
 Go to "Integration entities -> CONFIGURE -> Add MQTT Device"
-<img width="762" height="695" alt="image" src="https://github.com/user-attachments/assets/ae74c090-91de-44d9-bb80-0a410d87eb1b" />
 
+<p align="center">
+<img width="609" height="485566" alt="image" src="https://github.com/user-attachments/assets/ae74c090-91de-44d9-bb80-0a410d87eb1b" />
+</p>
 
 Go to configure MQTT device “relayX2board and select “Template”
-<img width="904" height="1174" alt="image" src="https://github.com/user-attachments/assets/f426e5eb-5919-4207-b4d2-4c9ae174d195" />
-
+<p align="center">
+<img width="633" height="822" alt="image" src="https://github.com/user-attachments/assets/f426e5eb-5919-4207-b4d2-4c9ae174d195" />
+</p>
 
 Press "Next" and then "Finish".
 
 Repeat the steps above for RELAY_2.
 
 Add the device to the Dashboard
+<p align="center">
+<img width="413" height="220" alt="image" src="https://github.com/user-attachments/assets/c1e0159e-d2cb-4161-a02d-2abe691fe0c3" />
+</p>
 
-<img width="617" height="315" alt="image" src="https://github.com/user-attachments/assets/c1e0159e-d2cb-4161-a02d-2abe691fe0c3" />
 
 I had to edit the YAML file to get th shape in the picture above.
-<img width="901" height="352" alt="image" src="https://github.com/user-attachments/assets/efe0d4f3-a58a-4d71-b53a-5ab7dfe997e1" />
+<p align="center">
+<img width="630" height="246" alt="image" src="https://github.com/user-attachments/assets/efe0d4f3-a58a-4d71-b53a-5ab7dfe997e1" />
+</p>
 
 
 
