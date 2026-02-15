@@ -10,9 +10,9 @@ This project allows you to control a dual-channel relay module using an **ESP32*
 
 The board is sourced with no information. The following tries to fill the gap providing SW and guidelines to use all the four resources on board (the two relays, the led and the button), both through a Rest API and MQTT. 
 
-A guide for the integration with Home Assitant is given as well.
+A guide for the integration with Home Assistant is given as well.
 
-The SW is developed for FreeRTOS OS and the development enviroment is the ESP-IDF. 
+The SW is developed for FreeRTOS OS and the development environment is the ESP-IDF. 
 
 # USB connection
 You can find some specs of the board ["here"](https://devices.esphome.io/devices/esp32-relay-x2/).
@@ -21,10 +21,10 @@ The board doesn't have a USB interface but a 6 pins header meant to connect an U
 
 Connect the header's and the USB-converter's GND and +5, and the TX & RX crossed. The two pins left in the header are a GND and the IO0. You need to keep the IO0 connected to GND while flashing.
 
-# Enviroment settings
+# Environment settings
 The source is in C language. 
 
-The execution enviroment is FreeRTOS OS.
+The execution environment is FreeRTOS OS.
 
 The IP connection is through Wi-Fi. You need to set your SSID and password in the file config.h
 
@@ -47,7 +47,7 @@ And if you want, modify the MQTT device name.
 ```
 
 # Building & flashing
-You need the ESP-IDF development enviroment installed. I am running ESP-IDF v5.4-dev-2194-gd7ca8b94c8 for Linux on a Raspberry Pi 3.
+You need the ESP-IDF development environment installed. I am running ESP-IDF v5.4-dev-2194-gd7ca8b94c8 for Linux on a Raspberry Pi 3.
 
 Go to ["Installation of ESP-IDF and Tools on Linux"](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/linux-setup.html) if you need to install it.
 
@@ -81,11 +81,11 @@ idf.py -p /dev/ttyUSB1 flash monitor
 ```
 Release the IO0 pin and press the EN push button to reset the board and start the execution.
 
-Note that you need to choose the right /dev/ttyXXX port depending on your enviroment.
+Note that you need to choose the right /dev/ttyXXX port depending on your environment.
 
 
-# Resp API
-The Rest API interface allow to manage the relays and retrive board status.
+# Rest API
+The Rest API interface allow to manage the relays and retrieve board status.
 
 The JSON data structure is the following:
 
@@ -94,7 +94,7 @@ The JSON data structure is the following:
 {"device":"....","set":"...","key":"..."}
 ```
 Where
-device= "led" / "uno"= relay 1 (outttermost) / "dos"= relay 2
+device= "led" / "uno"= relay 1 (outermost) / "dos"= relay 2
 
 set= "on" / "off"
 
@@ -105,7 +105,7 @@ response:
  {"device\":"...","status":"on/off/error"}
 ```
 
-(2) Retrive board information
+(2) Retrieve board information
 ```console
 {"info":"all","key":"qWpJnwA0crlmgv"}
 ```
@@ -123,7 +123,7 @@ To set REALY 1 "on" send
 ```console
 curl  -X GET http://192.168.1.137:80 -d '{"device":"uno","set":"on","key":"qWpJnwA0crlmgv"}'	
 ```
-the respose will be
+the response will be
 ```console
 {"device":"uno","status":"on"}
 ```
