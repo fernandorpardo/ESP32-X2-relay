@@ -15,7 +15,7 @@ A guide for the integration with Home Assistant is given as well.
 The SW is developed for FreeRTOS OS and the development environment is the ESP-IDF. 
 
 # USB connection
-You can find some specs of the board ["here"](https://devices.esphome.io/devices/esp32-relay-x2/).
+You can find some specs of the board [here](https://devices.esphome.io/devices/esp32-relay-x2/).
 
 The board doesn't have a USB interface but a 6 pins header meant to connect an USB to TTL serial converter that you need to buy apart. 
 
@@ -89,7 +89,7 @@ The Rest API interface allow to manage the relays and retrieve board status.
 
 The JSON data structure is the following:
 
-(1) Set relays on & off 
+(1) Set relays on & off: 
 ```console
 {"device":"....","set":"...","key":"..."}
 ```
@@ -102,10 +102,10 @@ key= shared key defined in config.h
 
 response:
 ```console
- {"device\":"...","status":"on/off/error"}
+ {"device":"...","status":"on/off/error"}
 ```
 
-(2) Retrieve board information
+(2) Retrieve board information:
 ```console
 {"info":"all","key":"qWpJnwA0crlmgv"}
 ```
@@ -160,13 +160,14 @@ Client null received PUBLISH (d0, q0, r0, m0, 'relayX2board/info', ... (30 bytes
 {"device":"uno","status":"on"}
 ```
 
-Publish to MQTT topic  'relayX2board/set' to turn the relay 1 "on":
+Publish to MQTT topic 'relayX2board/set' to turn the relay 1 "on":
 ```console
 pi@MQTT:~ $ mosquitto_pub -t "relayX2board/set" -m '{"device":"uno","set":"on"}'
 ```
 
 # Home Assistant integration
-Integration with Home Assistant is done through MQTT. You need to add the MQTT service to your Home Assistant instance: Go ["here"](https://www.home-assistant.io/integrations/mqtt/) and follow the instruction.
+Integration with Home Assistant is done through MQTT. You need to add the MQTT service to your Home Assistant instance.
+Go [here](https://www.home-assistant.io/integrations/mqtt/) and follow the instruction.
 
 Once you have the MQTT service enabled, it is time to add the board as MQTT device.
 
@@ -176,7 +177,7 @@ Go to "Integration entities -> CONFIGURE -> Add MQTT Device"
 <img width="609" height="485566" alt="image" src="https://github.com/user-attachments/assets/ae74c090-91de-44d9-bb80-0a410d87eb1b" />
 </p>
 
-Go to configure MQTT device “relayX2board and select “Template”
+Go to configure MQTT device “relayX2board" and select “Template”
 <p align="center">
 <img width="633" height="822" alt="image" src="https://github.com/user-attachments/assets/f426e5eb-5919-4207-b4d2-4c9ae174d195" />
 </p>
