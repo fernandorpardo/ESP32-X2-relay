@@ -2,7 +2,8 @@
  *	relayX2board  
  *  (c) Fernando R (iambobot.com)
  * 	1.0.0 - February 2026
- * 
+ *  1.1.0
+ *		- relay timeout added
  *
  ** ************************************************************************************************
 **/
@@ -38,7 +39,7 @@ To exit IDF monitor use the shortcut Ctrl+]
 **/
 /**
 TEST RESP-API
-		curl  -X GET http://192.168.1.137:80 -d '{"device":"led","set":"on","key":"qWpJnwA0crlmgv"}'	
+		curl  -X GET http://192.168.1.137:80 -d '{"device":"led","set":"on","key":"qWpJnwA0crlmgv","time":"180"}'	
 		curl  -X GET http://192.168.1.137:80 -d '{"device":"led","set":"off","key":"qWpJnwA0crlmgv"}'	
 		curl  -X GET http://192.168.1.137:80 -d '{"device":"uno","set":"on","key":"qWpJnwA0crlmgv"}'	
 		curl  -X GET http://192.168.1.137:80 -d '{"device":"uno","set":"off","key":"qWpJnwA0crlmgv"}'	
@@ -84,7 +85,7 @@ TEST MQTT
 
 #define PROJECT_NAME		"relayX2board"
 #define PROJECT_LOCATION 	"esp/relayX2board"
-#define PROJECT_VERSION		"01.00.00"
+#define PROJECT_VERSION		"01.01.00"
 
 static const char *TAG = "relay";
 
@@ -109,7 +110,59 @@ bool led_is_on;
 bool relay_UNO_is_on;
 bool relay_DOS_is_on;
 
+/**
+---------------------------------------------------------------------------------------------------
+		
+								   Timing jobs
 
+---------------------------------------------------------------------------------------------------
+**/
+// seconds
+uint32_t time_led;
+uint32_t time_relay_UNO;
+uint32_t time_relay_DOS;
+
+
+void RelayTimeout_task(void *pvParameter)
+{
+	time_led= 0;
+	time_relay_UNO= 0;	
+	time_relay_DOS= 0;
+	vTaskDelay( 1000 / portTICK_PERIOD_MS );
+	printf( "\nRelay WatchDog started");
+
+	while(1) 
+	{
+		uint32_t timeNow = (uint32_t) (esp_timer_get_time() / 1000000L);
+
+		if (time_led && (timeNow > time_led))
+		{
+			time_led= 0;
+			led_is_on= false;
+			gpio_set_level(PIN_GPIO_ONBOARD_LED, 0);
+			if(MQTT_is_connected()) mqtt_publish(network_tcp_send, DEVICE_MQTT_NAME"/info", "{\"device\":\"led\",\"status\":\"off\"}");
+		}
+		
+		if (time_relay_UNO && (timeNow > time_relay_UNO))
+		{
+			time_relay_UNO= 0;
+			relay_UNO_is_on= false;
+			gpio_set_level(PIN_GPIO_RELAY_1, 0);
+			if(MQTT_is_connected()) mqtt_publish(network_tcp_send, DEVICE_MQTT_NAME"/info", "{\"device\":\"uno\",\"status\":\"off\"}");
+		}
+		
+		if (time_relay_DOS && (timeNow > time_relay_DOS))
+		{
+			time_relay_DOS= 0;
+			relay_DOS_is_on= false;
+			gpio_set_level(PIN_GPIO_RELAY_2, 0);
+			if(MQTT_is_connected()) mqtt_publish(network_tcp_send, DEVICE_MQTT_NAME"/info", "{\"device\":\"dos\",\"status\":\"off\"}");
+		}
+	
+		// wait 1 seconds to repeat
+		vTaskDelay( 1000 / portTICK_PERIOD_MS );
+	}
+} // RelayTimeout_task
 /**
 ---------------------------------------------------------------------------------------------------
 		
@@ -255,69 +308,87 @@ int TCPCallback (int status, void *d)
 /**
 ---------------------------------------------------------------------------------------------------
 		
-								   PUBLISH Callback
+								   ACTIONS on Callback
 
 ---------------------------------------------------------------------------------------------------
 **/
-int PUBLISHCallback (char *payload)
-{
-	char device[32];	
-	char value[32];	
+// take actio when 
+// - MQTT PUBLISH to DEVICE_MQTT_NAME"/set"
+// - Rest API
+int ActionOnCallback (char *payload, char *response, size_t response_sz)
+{	
+	response[0]='\0';
 	int payload_length= strlen(payload);
-	
-	fprintf(stdout, "\nPUBLISHCallback %s", payload);	
-	fflush(stdout);
-	
-	jsonParseValue("device", payload, 0, payload_length, device, sizeof(device));
-	cstr_replace(device,'"','\0');
-	
-	jsonParseValue("status", payload, 0, payload_length, value, sizeof(value));
-	cstr_replace(value,'"','\0');
-	if(strlen(value))
+	if(payload && payload_length)
 	{
-		fprintf(stdout, "\nPUBLISH status %s", payload);	
-		fflush(stdout);			
-	}
-	jsonParseValue("set", payload, 0, payload_length, value, sizeof(value));
-	cstr_replace(value,'"','\0');
-	if(strlen(value))
-	{
-		if(strcmp(device, "led")==0)
+		char device[32];
+		jsonParseValue("device", payload, 0, payload_length, device, sizeof(device));
+		cstr_replace(device,'"','\0');
+		
+		char value[32];
+		jsonParseValue("set", payload, 0, payload_length, value, sizeof(value));
+		cstr_replace(value,'"','\0');
+		
+		char times[32];
+		jsonParseValue("timeout", payload, 0, payload_length, times, sizeof(times));
+		cstr_replace(times,'"','\0');
+		uint32_t time= atoi(times);
+		
+		if(strlen(device) && strlen(value))
 		{
-			led_is_on = (strcmp(value, "on")==0);
-			gpio_set_level(PIN_GPIO_ONBOARD_LED, led_is_on? 1:0);
-			char mqttpayload[64];
-			snprintf(mqttpayload, sizeof(mqttpayload), "{\"device\":\"%s\",\"status\":\"%s\"}", device, led_is_on?  "on":"off");
-			if(MQTT_is_connected()) mqtt_publish(network_tcp_send, DEVICE_MQTT_NAME"/info", mqttpayload);
-			// MQTT_publish(mqttpayload);			
-		}		
-		else if(strcmp(device, "uno")==0)
-		{
+			if(strcmp(device, "led")==0)
+			{
+				time_led= 0;
+				led_is_on = (strcmp(value, "on")==0);
+				gpio_set_level(PIN_GPIO_ONBOARD_LED, led_is_on? 1:0);
+				snprintf(response, response_sz, "{\"device\":\"%s\",\"status\":\"%s\"}", device, led_is_on?  "on":"off");
+				if(time) time_led= time + (uint32_t) (esp_timer_get_time() / 1000000L);
+			}		
+			else if(strcmp(device, "uno")==0)
+			{
+				time_relay_UNO= 0;	
+				relay_UNO_is_on = (strcmp(value, "on")==0);
+				gpio_set_level(PIN_GPIO_RELAY_1, relay_UNO_is_on? 1:0);
+				snprintf(response, response_sz, "{\"device\":\"%s\",\"status\":\"%s\"}", device, relay_UNO_is_on?  "on":"off");
+				if(time) time_relay_UNO= time + (uint32_t) (esp_timer_get_time() / 1000000L);
+			}
+			else if(strcmp(device, "dos")==0)
+			{
+				time_relay_DOS= 0;
+				relay_DOS_is_on = (strcmp(value, "on")==0);
+				gpio_set_level(PIN_GPIO_RELAY_2, relay_DOS_is_on? 1:0);
+				snprintf(response, response_sz,  "{\"device\":\"%s\",\"status\":\"%s\"}", device, relay_DOS_is_on?  "on":"off");
+				if(time) time_relay_DOS= time + (uint32_t) (esp_timer_get_time() / 1000000L);
+			}
+			else return -1;
 			
-			relay_UNO_is_on = (strcmp(value, "on")==0);
-			gpio_set_level(PIN_GPIO_RELAY_1, relay_UNO_is_on? 1:0);
-			char mqttpayload[64];
-			snprintf(mqttpayload, sizeof(mqttpayload), "{\"device\":\"%s\",\"status\":\"%s\"}", device, relay_UNO_is_on?  "on":"off");
-			if(MQTT_is_connected()) mqtt_publish(network_tcp_send, DEVICE_MQTT_NAME"/info", mqttpayload);
-			// MQTT_publish(mqttpayload);
+			// Notify - MQTT PUBLISH
+			if(MQTT_is_connected()) mqtt_publish(network_tcp_send, DEVICE_MQTT_NAME"/info", response);
+			return 0;
 		}
-		else if(strcmp(device, "dos")==0)
-		{
-			relay_DOS_is_on = (strcmp(value, "on")==0);
-			gpio_set_level(PIN_GPIO_RELAY_2, relay_DOS_is_on? 1:0);
-			char mqttpayload[64];
-			snprintf(mqttpayload, sizeof(mqttpayload), "{\"device\":\"%s\",\"status\":\"%s\"}", device, relay_DOS_is_on?  "on":"off");
-			if(MQTT_is_connected()) mqtt_publish(network_tcp_send, DEVICE_MQTT_NAME"/info", mqttpayload);	
-			// MQTT_publish(mqttpayload);			
-		}			
-		else
-		{
-			fprintf(stdout, "\nPUBLISH ERROR UNKNOWN DEVICE %s", payload);	
-			fflush(stdout);	
-		}
+	}
+	return -1;
+}		
+
+/**
+---------------------------------------------------------------------------------------------------
+		
+								   MQTT PUBLISH received Callback
+
+---------------------------------------------------------------------------------------------------
+**/
+// The device is subscribed to DEVICE_MQTT_NAME"/set"
+int MQTTPUBLISHCallback (char *payload)
+{
+	char mqttpayload[64];
+	if(ActionOnCallback (payload, mqttpayload, sizeof(mqttpayload)) < 0)
+	{
+		fprintf(stdout, "\nMQTTPUBLISHCallback ERROR payload %s", payload);
+		fflush(stdout);
+		return -1;
 	}
 	return 0;
-} // PUBLISHCallback()
+} // MQTTPUBLISHCallback()
 
 /**
 ---------------------------------------------------------------------------------------------------
@@ -335,63 +406,36 @@ int PUBLISHCallback (char *payload)
 
 int RestAPICallback(char * payload, char *response, size_t sz_response)
 {
-	char device[32];
+	response[0]= '\0';
+
 	char info[32];
-	char value[32];	
-	int payload_length= strlen(payload);
-	jsonParseValue("device", payload, 0, payload_length, device, sizeof(device));
-	cstr_replace(device,'"','\0');
-	jsonParseValue("info", payload, 0, payload_length, info, sizeof(info));
+	jsonParseValue("info", payload, 0, strlen(payload), info, sizeof(info));
 	cstr_replace(info,'"','\0');
 	
-	if(strlen(device))
-	{
-		if(strcmp(device, "led")==0)
-		{
-			jsonParseValue("set", payload, 0, payload_length, value, sizeof(value));
-			cstr_replace(value,'"','\0');
-			led_is_on = (strcmp(value, "on")==0);
-			gpio_set_level(PIN_GPIO_ONBOARD_LED, led_is_on? 1:0);
-			snprintf(response, sz_response, "{\"device\":\"%s\",\"status\":\"%s\"}", device, led_is_on?  "on":"off");
-			if(MQTT_is_connected()) mqtt_publish(network_tcp_send, DEVICE_MQTT_NAME"/info", response);
-			// MQTT_publish(response);
-		}	
-		else if(strcmp(device, "uno")==0)
-		{
-			jsonParseValue("set", payload, 0, payload_length, value, sizeof(value));
-			cstr_replace(value,'"','\0');
-			relay_UNO_is_on = (strcmp(value, "on")==0);
-			gpio_set_level(PIN_GPIO_RELAY_1, relay_UNO_is_on? 1:0);
-			snprintf(response, sz_response, "{\"device\":\"%s\",\"status\":\"%s\"}", device, relay_UNO_is_on?  "on":"off");
-			if(MQTT_is_connected()) mqtt_publish(network_tcp_send, DEVICE_MQTT_NAME"/info", response);
-			// MQTT_publish(response);
-		}
-		else if(strcmp(device, "dos")==0)
-		{
-			jsonParseValue("set", payload, 0, payload_length, value, sizeof(value));
-			cstr_replace(value,'"','\0');
-			relay_DOS_is_on = (strcmp(value, "on")==0);
-			gpio_set_level(PIN_GPIO_RELAY_2, relay_DOS_is_on? 1:0);
-			snprintf(response, sz_response, "{\"device\":\"%s\",\"status\":\"%s\"}", device, relay_DOS_is_on?  "on":"off");
-			if(MQTT_is_connected()) mqtt_publish(network_tcp_send, DEVICE_MQTT_NAME"/info", response);
-			// MQTT_publish(response);
-		}		
-		else
-		{
-			snprintf(response, sz_response, "{\"device\":\"%s\",\"result\":\"%s\"}", device, "error");
-		}
-	}
-	else if(strlen(info))
+	if(strlen(info))
 	{
 		char uptime_str[64];
-		snprintf(response, sz_response, "{\"uptime\":\"%s\", \"uno\":\"%s\",\"dos\":\"%s\", \"led\":\"%s\"}", 
-			upTime(uptime_str), relay_UNO_is_on?"on":"off", relay_DOS_is_on?"on":"off", led_is_on?"on":"off");
+		int8_t RSSI= network_wifi_RSSI();
+		snprintf(response, sz_response, "{\"uptime\":\"%s\",\"RSSI\":\"%d\",\"uno\":\"%s\",\"dos\":\"%s\", \"led\":\"%s\"}", 
+			upTime(uptime_str), RSSI, relay_UNO_is_on?"on":"off", relay_DOS_is_on?"on":"off", led_is_on?"on":"off");
+		return 0;
 	}
 	else
 	{
-		snprintf(response, sz_response, "{\"result\":\"%s\"}", "error");
-	}	
-	return 0;
+		char mqttpayload[64];
+		if(ActionOnCallback (payload, mqttpayload, sizeof(mqttpayload)) < 0)
+		{
+			fprintf(stdout, "\nRestAPICallback ERROR payload %s", payload);
+			fflush(stdout);
+		}
+		else
+		{
+			cstr_copy(response, mqttpayload, sz_response);
+			return 0;
+		}
+	}
+	snprintf(response, sz_response, "{\"result\":\"%s\"}", "error");
+	return -1;
 } // RestAPICallback
 
 
@@ -404,11 +448,15 @@ int RestAPICallback(char * payload, char *response, size_t sz_response)
 **/
 void callbackPressButtonAction(int igpio_status)
 {
-	printf("\nCALLBACK %s\n", igpio_status?"---":"PRESSED"); 
+	fprintf(stdout, "\nCALLBACK %s\n", igpio_status?"---":"PRESSED"); 
 	if(igpio_status == 0)
 	{
 		led_is_on = !led_is_on;
 		gpio_set_level(PIN_GPIO_ONBOARD_LED, led_is_on? 1:0);
+		
+		char jsonMQTT[64];
+		snprintf(jsonMQTT, sizeof(jsonMQTT),  "{\"device\":\"led\",\"status\":\"%s\"}", led_is_on?  "on":"off");
+		if(MQTT_is_connected()) mqtt_publish(network_tcp_send, DEVICE_MQTT_NAME"/info", jsonMQTT);		
 	}
 } // callbackPressButtonAction()
 
@@ -457,7 +505,7 @@ void app_main(void)
 	// --------------------------------------------------------------------------------------------
 	// TASKs MQTT & TCP
 	// MQTT Mosquitto client	
-	MQTT_client_create(TCPCallback, PUBLISHCallback, 2);
+	MQTT_client_create(TCPCallback, MQTTPUBLISHCallback, 2);
 	
 	// --------------------------------------------------------------------------------------------
 	// TASK RestAPI
@@ -481,6 +529,9 @@ void app_main(void)
 	// Create ESP Timer
 	ESP_ERROR_CHECK(esp_timer_early_init());
 	timeOnBoot = (uint32_t) (esp_timer_get_time() / 1000000L);
+
+	// TASK - RELAY timeout watcher
+	xTaskCreate( &RelayTimeout_task, "RelayTimeout_task", 2048, NULL, 1, NULL );
 	
 	while(1)
 	{
@@ -497,6 +548,7 @@ void app_main(void)
 				fprintf(stdout,"   IP       %s\n", IPaddr);
 				fprintf(stdout,"   MAC      %s\n", MACaddr);
 				fprintf(stdout,"   WiFi     %s\n", network_wifi_is_connected()?"OK":"FAIL");
+				fprintf(stdout,"   RSSI     %d\n", network_wifi_RSSI());
 				fprintf(stdout,"   TCP      %s\n", network_tcp_is_connected()?"OK":"FAIL");
 				fprintf(stdout,"   NQTT     %s\n", MQTT_is_connected()?"OK":"FAIL");
 

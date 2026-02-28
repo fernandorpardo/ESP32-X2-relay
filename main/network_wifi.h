@@ -5,6 +5,8 @@
 #define NETWORK_STATUS_WIFI_DISCONNECTED	2
 #define NETWORK_STATUS_WIFI_LOST			3
 
+int8_t network_wifi_RSSI(void);
+
 void network_wifi_init(int (*callback) (int, void*));
 bool network_wifi_is_connected(void);
 void network_wifi_connect();

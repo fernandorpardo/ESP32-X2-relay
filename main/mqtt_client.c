@@ -166,7 +166,7 @@ void xTask_MQTT_client(void *pvParameters)
 			{
 				if(count<=0)
 				{
-					printf("\n[xTask_MQTT_client] Sending MQTT CONNECT"); 
+					fprintf(stdout, "\n[xTask_MQTT_client] Sending MQTT CONNECT"); 
 					fflush(stdout);
 					mqtt_connect(network_tcp_send);
 					//vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -179,20 +179,20 @@ void xTask_MQTT_client(void *pvParameters)
 			else if(!MQTT_status_subscribe_send)
 			{
 				MQTT_status_subscribe_send= true;
-				if(_SELF_SUBSCRIBE_)
-				{
-					printf("\n[xTask_MQTT_client] Sending MQTT mqtt_subscribe"); 
+				// if(_SELF_SUBSCRIBE_)
+				// {
+					fprintf(stdout, "\n[xTask_MQTT_client] Sending MQTT mqtt_subscribe"); 
 					fflush(stdout);
 					mqtt_subscribe(network_tcp_send, 1, DEVICE_MQTT_NAME"/set");
-					fprintf(stdout,"mqtt_subscribe\n");
-				}
+					//fprintf(stdout, "mqtt_subscribe\n");
+				// }
 				count= MQTT_PINGREQ_TIME;
 			}
 			else
 			{
 				if(count<=0)
 				{
-					printf("\n[xTask_MQTT_client] Sending MQTT PING"); 
+					fprintf(stdout, "\n[xTask_MQTT_client] Sending MQTT PING"); 
 					fflush(stdout);
 					mqtt_ping(network_tcp_send);
 					count= MQTT_PINGREQ_TIME;

@@ -3,6 +3,8 @@
  *  (c) Fernando R (iambobot.com)
  *
  *  1.0.0 - Dec 2025
+ *  1.1.0 - Feb 2026
+ *        - int8_t network_wifi_RSSI(void)
  *
  ** ************************************************************************************************
 **/
@@ -214,6 +216,14 @@ void network_wifi_sta(void)
 } // wifi_init_sta()
 
 
+int8_t network_wifi_RSSI(void)
+{
+	wifi_ap_record_t ap_info;
+	esp_err_t err;
+	ESP_ERROR_CHECK(err=esp_wifi_sta_get_ap_info(&ap_info));
+	if(err == ESP_OK) return  ap_info.rssi;
+	return 0;
+}
 
 void network_wifi_init(int (*callbak) (int,void*))
 {
