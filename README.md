@@ -179,7 +179,7 @@ Once you have the MQTT service enabled, it is time to add the board as MQTT devi
 Go to "Integration entities -> CONFIGURE -> Add MQTT Device"
 
 <p align="center">
-<img width="609" height="485566" alt="image" src="https://github.com/user-attachments/assets/ae74c090-91de-44d9-bb80-0a410d87eb1b" />
+<img width="609" height="695" alt="image" src="https://github.com/user-attachments/assets/ae74c090-91de-44d9-bb80-0a410d87eb1b" />
 </p>
 
 Go to configure MQTT device “relayX2board" and select “Template”
